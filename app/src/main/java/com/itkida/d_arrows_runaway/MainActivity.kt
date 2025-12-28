@@ -3,41 +3,25 @@ package com.itkida.d_arrows_runaway
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Initialize our state logic
-        val gameState = GameState()
+        val gameState = GameState() // Your GameState logic
 
         setContent {
             MaterialTheme {
-                Surface(color = Color(0xFFF0F0F0),) {
+                Surface(color = Color(0xFFF0F0F0)) {
                     GameScreen(gameState)
                 }
             }
@@ -45,44 +29,37 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-val level2Arrows = listOf(
-    // A cluster in the middle
-    ArrowBlock(id = 1, row = 4, col = 4, direction = Direction.UP),
-    ArrowBlock(id = 2, row = 4, col = 5, direction = Direction.RIGHT),
-    ArrowBlock(id = 3, row = 5, col = 5, direction = Direction.DOWN),
-    ArrowBlock(id = 4, row = 5, col = 4, direction = Direction.LEFT),
+// --- HELPER TO GET FRESH LEVEL DATA ---
+// We use a function instead of a global variable to ensure we get
+// new, clean ArrowBlock objects every time we call it.
+fun getLevelArrows(level: Int): List<ArrowBlock> {
+    val rawList = when (level) {
+        1 -> level1Arrows
+        2 -> level2Arrows // Ensure level2Arrows is defined below
+        3 -> level3Arrows // Ensure level3Arrows is defined
+        else -> emptyList()
+    }
 
-    // Perimeter blockers
-    ArrowBlock(id = 5, row = 2, col = 4, direction = Direction.RIGHT),
-    ArrowBlock(id = 6, row = 4, col = 7, direction = Direction.UP),
-    ArrowBlock(id = 7, row = 7, col = 5, direction = Direction.LEFT),
-    ArrowBlock(id = 8, row = 5, col = 2, direction = Direction.DOWN),
-
-    // Outliers
-    ArrowBlock(id = 9, row = 1, col = 1, direction = Direction.DOWN),
-    ArrowBlock(id = 10, row = 8, col = 8, direction = Direction.UP)
-)
+    // CRITICAL FIX: Create a COPY of every arrow.
+    // Otherwise, resetting reloads the 'moved' or 'red' arrows from memory.
+    return rawList.map {
+        it.copy(
+            animOffset = androidx.compose.animation.core.Animatable(0f),
+            isMoving = false
+            // currentColor resets automatically because it's a var inside the class,
+            // but copying the data object creates a fresh instance.
+        )
+    }
+}
 
 @Composable
 fun GameScreen(gameState: GameState) {
-    val scope = rememberCoroutineScope()
-    // Track which level the user is on
+    // Track current level
     var currentLevelNumber by remember { mutableStateOf(1) }
 
-    // Load the level based on the number
+    // 1. Load Level Automatically when 'currentLevelNumber' changes
     LaunchedEffect(currentLevelNumber) {
-        val selectedLevel = when (currentLevelNumber) {
-            1 -> listOf(
-                ArrowBlock(1, 3, 3, Direction.UP),
-                ArrowBlock(2, 3, 4, Direction.RIGHT),
-                ArrowBlock(3, 5, 4, Direction.DOWN),
-                ArrowBlock(4, 5, 2, Direction.LEFT)
-            )
-            2 -> level2Arrows // The list we created above
-//            3 -> level3Arrows
-            else -> emptyList()
-        }
-        gameState.loadLevel(selectedLevel)
+        gameState.loadLevel(getLevelArrows(currentLevelNumber))
     }
 
     Column(
@@ -90,11 +67,13 @@ fun GameScreen(gameState: GameState) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
+        // Header
         Text(
             text = "Level $currentLevelNumber",
             style = MaterialTheme.typography.headlineMedium
         )
 
+        // Game Board Area
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             if (gameState.isLevelComplete) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -113,10 +92,27 @@ fun GameScreen(gameState: GameState) {
             }
         }
 
+        // Footer / Reset Button
         Row {
-            Button(onClick = { gameState.loadLevel(gameState.arrows.toList()) }) {
+            Button(
+                onClick = {
+                    // FIX: Reloads the CURRENT level using the helper
+                    currentLevelNumber = 2
+                    gameState.loadLevel(getLevelArrows(currentLevelNumber))
+                }
+            ) {
+                Text("Level 1")
+            }
+            Spacer(modifier = Modifier.width(20.dp))
+            Button(
+                onClick = {
+                    // FIX: Reloads the CURRENT level using the helper
+                    gameState.loadLevel(getLevelArrows(currentLevelNumber))
+                }
+            ) {
                 Text("Reset")
             }
+
         }
     }
 }

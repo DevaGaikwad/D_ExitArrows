@@ -12,6 +12,9 @@ data class ArrowBlock(
     val row: Int,
     val col: Int,
     val direction: Direction,
+    // New optional properties for L-shapes
+    val cornerRow: Int? = null,
+    val cornerCol: Int? = null,
     val animOffset: Animatable<Float, AnimationVector1D> = Animatable(0f),
     var isMoving: Boolean = false
 ) {
